@@ -119,6 +119,7 @@ Third-party widgets (non-`omarchy.*`) are only loaded by the shell when referenc
 omarchy-shell io.github.kamal-v8.bar-squared moveFromMain omarchy.microphone center  # main → Bar²
 omarchy-shell io.github.kamal-v8.bar-squared moveToMain omarchy.microphone right     # Bar² → main
 omarchy-shell io.github.kamal-v8.bar-squared moveWithinDup flowfocus -1              # reorder in Bar² (↑ = -1, ↓ = +1)
+omarchy-shell io.github.kamal-v8.bar-squared moveDupSection flowfocus left          # move within Bar² to left/center/right
 omarchy-shell io.github.kamal-v8.bar-squared status | jq
 omarchy-shell io.github.kamal-v8.bar-squared toggleMode
 omarchy-shell io.github.kamal-v8.bar-squared setPosition top   # top/bottom/left/right
@@ -168,6 +169,7 @@ hyprctl layers | grep -E "io.github.kamal-v8.bar-squared|omarchy-bar"
 
 ## Changelog
 
+- 1.5.2 — Second-bar rows gain an L/C/R section-cycler button (`moveDupSection`), ↑/↓ disable at the edges
 - 1.5.1 — bar items no longer overlap: slots floor by painted extents, remember settled widths across rebuilds, per-section live updates (reorder only remounts its section)
 - 1.5.0 — compact popup (760px, cap 520px), settings drawer hidden by default (opens via ⚙), transfer gutter removed (per-row buttons only), fresh `preview.png`
 - 1.4.0 — panel no longer closes on every move/resize (service-owned open state)

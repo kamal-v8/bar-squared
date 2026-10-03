@@ -196,17 +196,33 @@ Item {
     if (root.layoutSig(fresh.left) !== root.layoutSig(root.liveLeft)) root.liveLeft = fresh.left
     if (root.layoutSig(fresh.center) !== root.layoutSig(root.liveCenter)) root.liveCenter = fresh.center
     if (root.layoutSig(fresh.right) !== root.layoutSig(root.liveRight)) root.liveRight = fresh.right
+    // Prune width memory for widgets no longer hosted anywhere.
+    var keep = {}
+    var secs = [fresh.left, fresh.center, fresh.right]
+    for (var s = 0; s < secs.length; s++) {
+      var arr = secs[s]
+      if (!Array.isArray(arr)) continue
+      for (var i = 0; i < arr.length; i++) keep[root.entryId(arr[i])] = true
+    }
+    var pruned = false
+    var next = root.slotWidths
+    for (var k in next) {
+      if (!keep[k]) { delete next[k]; pruned = true }
+    }
+    if (pruned) root.slotWidthsRev++
   }
-  // Remembers the widest settled width per widget id (monotonic per
-  // session). Rebuilds — reorder/move edits remount every Loader, whose
-  // async widgets restart narrow (~20px) for seconds — immediately reuse the
-  // remembered width instead of collapsing and mashing neighbors. Slots for
-  // hidden items still collapse to 0.
+  // Remembers settled widths per widget id so rebuilds (reorder/move edits
+  // remount every Loader, whose async widgets restart narrow for seconds)
+  // reuse the last width instead of collapsing and mashing neighbors.
+  // Every width *change* is recorded, up or down: the initial narrow value
+  // never fires onWidthChanged, so warmup states can't poison the memory,
+  // and ids absent from the layout are pruned in syncLive so re-added
+  // widgets measure fresh.
   property var slotWidths: ({})
   property int slotWidthsRev: 0
   function rememberWidth(id, w) {
     if (!id || !(w > 0)) return
-    if (w > (slotWidths[id] || 0)) { slotWidths[id] = w; slotWidthsRev++ }
+    if (slotWidths[id] !== w) { slotWidths[id] = w; slotWidthsRev++ }
   }
   function rememberedWidth(id) {
     var rev = root.slotWidthsRev
@@ -1188,7 +1204,40 @@ Item {
     implicitHeight: !slot.registered ? 0 : (!loader.item ? root.storedHeight : (!itemShown ? 0 : Math.max(loader.item.implicitHeight, paintedHeight)))
     width: implicitWidth
     height: implicitHeight
-    onWidthChanged: { if (itemShown && width > 0) root.rememberWidth(slot.moduleName, width) }
+    // Width memory writer. Growth records immediately (always truthward);
+    // shrinkage records only after 4s of stability (settleTimer), so slow
+    // warmups (probes resolving one by one) and poll jitter (1-2px) can
+    // never freeze a stale-wide floor that leaves dead gaps. The Loader
+    // item's initial value never fires the signal, so warmup-narrow states
+    // can't poison the memory either.
+    property real settleBase: 0
+    Timer {
+      id: settleTimer
+      interval: 4000
+      running: false
+      repeat: false
+      onTriggered: {
+        try {
+          var st = loader.item
+          if (st && st.visible && st.implicitWidth > 0) root.rememberWidth(slot.moduleName, st.implicitWidth)
+        } catch(e4) {}
+      }
+    }
+    Connections {
+      target: loader.item
+      function onImplicitWidthChanged() {
+        var t = loader.item
+        if (!t || !t.visible || !(t.implicitWidth > 0)) return
+        var v = t.implicitWidth
+        var mem = root.rememberedWidth(slot.moduleName)
+        if (v > mem) root.rememberWidth(slot.moduleName, v)
+        if (Math.abs(v - slot.settleBase) > 4) { slot.settleBase = v; settleTimer.restart() }
+      }
+    }
+    onWidthChanged: {
+      if (!itemShown || !(width > 0)) return
+      root.rememberWidth(slot.moduleName, width)
+    }
     Loader {
       id: loader
       active: slot.registered

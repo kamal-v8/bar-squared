@@ -169,6 +169,7 @@ hyprctl layers | grep -E "io.github.kamal-v8.bar-squared|omarchy-bar"
 
 ## Changelog
 
+- 1.5.3 — width memory tracks shrink too (stability-gated): no more dead gaps when widget content shrinks; note: keep hosted widgets in one section for tight packing — left/center/right pin groups to the edges like the main bar
 - 1.5.2 — Second-bar rows gain an L/C/R section-cycler button (`moveDupSection`), ↑/↓ disable at the edges
 - 1.5.1 — bar items no longer overlap: slots floor by painted extents, remember settled widths across rebuilds, per-section live updates (reorder only remounts its section)
 - 1.5.0 — compact popup (760px, cap 520px), settings drawer hidden by default (opens via ⚙), transfer gutter removed (per-row buttons only), fresh `preview.png`

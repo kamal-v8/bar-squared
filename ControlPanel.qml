@@ -881,6 +881,7 @@ Panel {
                       bordered: true
                       tooltipText: "Move up"
                       Layout.preferredWidth: Style.space(26)
+                      enabled: modelData.idx > 0
                       opacity: modelData.idx > 0 ? 1.0 : 0.35
                       onClicked: callBarSquared(["moveWithinDup", modelData.id, "-1"])
                     }
@@ -890,6 +891,7 @@ Panel {
                       bordered: true
                       tooltipText: "Move down"
                       Layout.preferredWidth: Style.space(26)
+                      enabled: modelData.idx < modelData.count - 1
                       opacity: modelData.idx < modelData.count - 1 ? 1.0 : 0.35
                       onClicked: callBarSquared(["moveWithinDup", modelData.id, "1"])
                     }
@@ -900,6 +902,14 @@ Panel {
                       tooltipText: "Move back to main bar"
                       Layout.preferredWidth: Style.space(34)
                       onClicked: callBarSquared(["moveToMain", modelData.id, modelData.sec])
+                    }
+                    Button {
+                      text: modelData.sec === "left" ? "L" : (modelData.sec === "center" ? "C" : "R")
+                      fontSize: Style.font.bodySmall
+                      bordered: true
+                      tooltipText: "Section: " + modelData.sec + " — move to " + (modelData.sec === "left" ? "center" : (modelData.sec === "center" ? "right" : "left"))
+                      Layout.preferredWidth: Style.space(26)
+                      onClicked: callBarSquared(["moveDupSection", modelData.id, modelData.sec === "left" ? "center" : (modelData.sec === "center" ? "right" : "left")])
                     }
                   }
                 }

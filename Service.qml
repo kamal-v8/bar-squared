@@ -177,18 +177,40 @@ Item {
     }
     return { left: keep(dup.left), center: keep(dup.center), right: keep(dup.right) }
   }
-  property var liveLayout: ({ left: [], center: [], right: [] })
-  // Reassigning liveLayout rebuilds every hosted widget (wiping async state
-  // like GPU detection, which needs seconds to re-poll). Only reassign when
-  // the effective layout actually changed, so Width/Height/Corners/
-  // Transparent/Mode tweaks and unrelated shell.json writes don't destroy
-  // live widgets.
+  // Live hosted layout, split per section so an edit in one section only
+  // remounts that section's Loaders (a whole-object reassign would rebuild
+  // every hosted widget, wiping async state like GPU detection).
+  property var liveLeft: []
+  property var liveCenter: []
+  property var liveRight: []
+  // Reassigning a section rebuilds its hosted widgets (wiping async state
+  // like GPU detection, which needs seconds to re-poll). Only reassign a
+  // section whose effective layout actually changed, so Width/Height/
+  // Corners/Transparent/Mode tweaks and unrelated shell.json writes don't
+  // destroy live widgets.
   function layoutSig(l) {
     try { return JSON.stringify(l || {}) } catch(e) { return "" }
   }
   function syncLive() {
     var fresh = root.filteredDup()
-    if (root.layoutSig(fresh) !== root.layoutSig(root.liveLayout)) root.liveLayout = fresh
+    if (root.layoutSig(fresh.left) !== root.layoutSig(root.liveLeft)) root.liveLeft = fresh.left
+    if (root.layoutSig(fresh.center) !== root.layoutSig(root.liveCenter)) root.liveCenter = fresh.center
+    if (root.layoutSig(fresh.right) !== root.layoutSig(root.liveRight)) root.liveRight = fresh.right
+  }
+  // Remembers the widest settled width per widget id (monotonic per
+  // session). Rebuilds — reorder/move edits remount every Loader, whose
+  // async widgets restart narrow (~20px) for seconds — immediately reuse the
+  // remembered width instead of collapsing and mashing neighbors. Slots for
+  // hidden items still collapse to 0.
+  property var slotWidths: ({})
+  property int slotWidthsRev: 0
+  function rememberWidth(id, w) {
+    if (!id || !(w > 0)) return
+    if (w > (slotWidths[id] || 0)) { slotWidths[id] = w; slotWidthsRev++ }
+  }
+  function rememberedWidth(id) {
+    var rev = root.slotWidthsRev
+    return (id && slotWidths[id]) || 0
   }
   onDupLayoutChanged: { root.syncLive(); root.stashDup() }
   onFileConfigChanged: { root.syncLive(); root.trackBarPresence() }
@@ -268,10 +290,9 @@ Item {
   readonly property bool hasLiveWidgets: {
     var reg = root.barWidgetRegistry ? root.barWidgetRegistry.widgets : null
     if (!reg) return false
-    var lay = root.liveLayout || {}
-    var secs = ["left", "center", "right"]
-    for (var s = 0; s < secs.length; s++) {
-      var arr = lay[secs[s]]
+    var lays = [root.liveLeft, root.liveCenter, root.liveRight]
+    for (var s = 0; s < lays.length; s++) {
+      var arr = lays[s]
       if (!Array.isArray(arr)) continue
       for (var i = 0; i < arr.length; i++) {
         var id = root.entryId(arr[i])
@@ -632,6 +653,76 @@ Item {
     return true
   }
 
+  // Cross-section move within the Bar² layout (used by the control panel's
+  // section cycler). Pops the entry from its current section and appends it
+  // to the destination section; atomic file edit like the other mutations
+  // so FileView picks it up.
+  Process {
+    id: dupSectionProc
+    stdout: StdioCollector { id: dupSectionOut; waitForEnd: true }
+    stderr: StdioCollector { id: dupSectionErr; waitForEnd: true }
+    onExited: function(code){ if(code!==0) console.log("Bar² section move failed "+code+" "+dupSectionOut.text+" "+dupSectionErr.text) }
+  }
+  function moveDupSection(widgetId, dstSection) {
+    var wid = canonical(widgetId)
+    if (!wid) return false
+    var dst = /^(left|center|right)$/.test(String(dstSection)) ? String(dstSection) : "center"
+    var home = Quickshell.env("HOME")
+    var path = home + "/.config/omarchy/shell.json"
+    var py = ""
+      + "import json,os,sys\n"
+      + "p=os.path.expanduser('~/.config/omarchy/shell.json')\n"
+      + "wid=sys.argv[1]; dst=sys.argv[2] if len(sys.argv)>2 and sys.argv[2] in ['left','center','right'] else 'center'\n"
+      + "PID='io.github.kamal-v8.bar-squared'\n"
+      + "cfg=json.load(open(p))\n"
+      + "secs=['left','center','right']\n"
+      + "lay=None\n"
+      + "bl=cfg.get('bar',{}).get('layout',{})\n"
+      + "found_bar=False\n"
+      + "for s in ['left','center','right']:\n"
+      + "  for e in bl.get(s,[]):\n"
+      + "    eid=e.get('id') if isinstance(e,dict) else str(e)\n"
+      + "    if isinstance(e,dict) and eid==PID and isinstance(e.get('layout'),dict):\n"
+      + "      lay=e.get('layout'); found_bar=True; break\n"
+      + "  if found_bar: break\n"
+      + "if lay is None:\n"
+      + "  for e in cfg.get('plugins',[]):\n"
+      + "    if isinstance(e,dict) and e.get('id')==PID and isinstance(e.get('layout'),dict):\n"
+      + "      lay=e.get('layout'); break\n"
+      + "if lay is None: print('no dup'); sys.exit(1)\n"
+      + "for s in secs:\n"
+      + "  if s not in lay or not isinstance(lay[s],list): lay[s]=[]\n"
+      + "found=None\n"
+      + "for s in secs:\n"
+      + "  for i,e in enumerate(lay[s]):\n"
+      + "    eid=e.get('id') if isinstance(e,dict) else str(e)\n"
+      + "    if eid==wid:\n"
+      + "      found=e; lay[s].pop(i); break\n"
+      + "  if found is not None: break\n"
+      + "if found is None:\n"
+      + "  print('not found in dup '+wid); sys.exit(1)\n"
+      + "lay[dst]=[e for e in lay[dst] if (e.get('id') if isinstance(e,dict) else str(e))!=wid]\n"
+      + "lay[dst].append(found)\n"
+      + "b2=None\n"
+      + "for s in ['left','center','right']:\n"
+      + "  for e in cfg.get('bar',{}).get('layout',{}).get(s,[]):\n"
+      + "    eid=e.get('id') if isinstance(e,dict) else str(e)\n"
+      + "    if eid==PID: b2=e; break\n"
+      + "  if b2 is not None: break\n"
+      + "if b2 is not None:\n"
+      + "  me2=None\n"
+      + "  for e in cfg.get('plugins',[]):\n"
+      + "    if isinstance(e,dict) and e.get('id')==PID: me2=e; break\n"
+      + "  if me2 is None:\n"
+      + "    me2={'id':PID}; cfg.setdefault('plugins',[]).append(me2)\n"
+      + "  me2['layout']=json.loads(json.dumps(lay))\n"
+      + "tmp=p+'.tmp'; json.dump(cfg, open(tmp,'w'), indent=2); os.rename(tmp,p)\n"
+      + "print('ok '+wid+' section '+dst)\n"
+    dupSectionProc.command = ["python3","-c", py, wid, dst]
+    dupSectionProc.running = true
+    return true
+  }
+
   // --- Single-entry lifecycle: migration + disable self-clean ---
   Process {
     id: migrateProc
@@ -808,13 +899,14 @@ Item {
       var reg = root.barWidgetRegistry
       var regKeys = []
       try { if (reg && reg.widgets) regKeys = Object.keys(reg.widgets) } catch(e) {}
-      var live = root.liveLayout || {}
+      var live = { left: root.liveLeft, center: root.liveCenter, right: root.liveRight }
       function ids(a){ var o=[]; try{ for(var i=0;i<(a||[]).length;i++){ var e=a[i]; o.push(e&&e.id?String(e.id):String(e)) } }catch(e2){} return o }
       return JSON.stringify({ mode: root.mode, position: root.position, width: root.storedWidth, floatingWidth: root.floatingWidth, vertical: root.vertical, barSize: root.barSize, barHeight: root.storedHeight, cornerRadius: root.storedRadius, spacing: root.storedSpacing, transparent: root.transparent, hasExplicitWidth: root.hasExplicitWidth, dockedShrunk: root.dockedShrunk, controlInMain: root.controlInMain, singleEntry: root.pluginEntry === null, layout: root.dupLayout, liveLayout: { left: ids(live.left), center: ids(live.center), right: ids(live.right) }, hasRegistry: !!reg, registryCount: regKeys.length, hasMenu: regKeys.indexOf("omarchy.menu") !== -1, hasShellMutate: shell && typeof shell.mutateShellConfig === "function" })
     }
     function moveFromMain(id: string, section: string): string { var ok=root.moveFromMain(id, section); return ok ? "ok" : "failed" }
     function moveToMain(id: string, section: string): string { var ok=root.moveToMain(id, section); return ok ? "ok" : "failed" }
     function moveWithinDup(id: string, dir: string): string { var ok=root.dupOrder(id, dir); return ok ? "ok" : "failed" }
+    function moveDupSection(id: string, section: string): string { var ok=root.moveDupSection(id, section); return ok ? "ok" : "failed" }
   }
 
   Variants {
@@ -896,14 +988,17 @@ Item {
                   Item {
                     id: hCenter
                     anchors.centerIn: parent
-                    width: centerRow.implicitWidth
+                    // Bound to the space between the side rows so wide center
+                    // content truncates (clip) instead of painting over them.
+                    width: Math.max(0, Math.min(centerRow.implicitWidth, parent.width - leftRow.width - rightRow.width - Style.space(8) * 2 - root.storedSpacing * 2))
                     height: parent.height
+                    clip: true
                     Row {
                       id: centerRow
                       anchors.centerIn: parent
                       spacing: root.storedSpacing
                       Repeater {
-                        model: root.liveLayout.center
+                        model: root.liveCenter
                         delegate: DupSlot {
                           required property var modelData
                           entry: modelData
@@ -917,9 +1012,10 @@ Item {
                     anchors.left: parent.left
                     anchors.leftMargin: Style.space(8)
                     anchors.verticalCenter: parent.verticalCenter
+                    clip: true
                     spacing: root.storedSpacing
                     Repeater {
-                      model: root.liveLayout.left
+                      model: root.liveLeft
                       delegate: DupSlot {
                         required property var modelData
                         entry: modelData
@@ -932,9 +1028,10 @@ Item {
                     anchors.right: parent.right
                     anchors.rightMargin: Style.space(8)
                     anchors.verticalCenter: parent.verticalCenter
+                    clip: true
                     spacing: root.storedSpacing
                     Repeater {
-                      model: root.liveLayout.right
+                      model: root.liveRight
                       delegate: DupSlot {
                         required property var modelData
                         entry: modelData
@@ -971,7 +1068,7 @@ Item {
                     anchors.centerIn: parent
                     spacing: root.storedSpacing
                     Repeater {
-                      model: root.liveLayout.center
+                      model: root.liveCenter
                       delegate: DupSlot {
                         required property var modelData
                         entry: modelData
@@ -985,7 +1082,7 @@ Item {
                     anchors.horizontalCenter: parent.horizontalCenter
                     spacing: root.storedSpacing
                     Repeater {
-                      model: root.liveLayout.left
+                      model: root.liveLeft
                       delegate: DupSlot {
                         required property var modelData
                         entry: modelData
@@ -999,7 +1096,7 @@ Item {
                     anchors.horizontalCenter: parent.horizontalCenter
                     spacing: root.storedSpacing
                     Repeater {
-                      model: root.liveLayout.right
+                      model: root.liveRight
                       delegate: DupSlot {
                         required property var modelData
                         entry: modelData
@@ -1024,7 +1121,7 @@ Item {
               }
             }
           }
-          MouseArea {
+    MouseArea {
             anchors.fill: parent
             visible: root.dragSource !== null
             hoverEnabled: true
@@ -1078,10 +1175,20 @@ Item {
     // detection finishes and never appeared). Size reads are safe — size
     // doesn't feed back into visibility.
     visible: slot.registered
-    implicitWidth: !slot.registered ? 0 : (loader.item ? (loader.item.visible ? loader.item.implicitWidth : 0) : fallbackText.implicitWidth + 16)
-    implicitHeight: !slot.registered ? 0 : (loader.item ? (loader.item.visible ? loader.item.implicitHeight : 0) : root.storedHeight)
+    // Size from painted extents, not just implicitWidth: several widgets
+    // under-report implicitWidth in a hosted context (async state/fonts at
+    // load, onThisScreen-style guards, fixedWidth fallback branches), which
+    // collapsed slots to ~20px while items painted ~70px wide — every widget
+    // mashed together. The Loader's childrenRect measures what actually
+    // paints, so floor the slot by it. Hidden items still collapse to 0.
+    readonly property bool itemShown: loader.item !== null && loader.item.visible === true
+    readonly property real paintedWidth: itemShown ? loader.childrenRect.width : 0
+    readonly property real paintedHeight: itemShown ? loader.childrenRect.height : 0
+    implicitWidth: !slot.registered ? 0 : (!loader.item ? fallbackText.implicitWidth + 16 : (!itemShown ? 0 : Math.max(loader.item.implicitWidth, paintedWidth, root.rememberedWidth(slot.moduleName))))
+    implicitHeight: !slot.registered ? 0 : (!loader.item ? root.storedHeight : (!itemShown ? 0 : Math.max(loader.item.implicitHeight, paintedHeight)))
     width: implicitWidth
     height: implicitHeight
+    onWidthChanged: { if (itemShown && width > 0) root.rememberWidth(slot.moduleName, width) }
     Loader {
       id: loader
       active: slot.registered

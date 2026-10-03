@@ -168,6 +168,7 @@ hyprctl layers | grep -E "io.github.kamal-v8.bar-squared|omarchy-bar"
 
 ## Changelog
 
+- 1.5.1 — bar items no longer overlap: slots floor by painted extents, remember settled widths across rebuilds, per-section live updates (reorder only remounts its section)
 - 1.5.0 — compact popup (760px, cap 520px), settings drawer hidden by default (opens via ⚙), transfer gutter removed (per-row buttons only), fresh `preview.png`
 - 1.4.0 — panel no longer closes on every move/resize (service-owned open state)
 - 1.3.0 — one-click enable/disable (single-entry config, auto-migration)

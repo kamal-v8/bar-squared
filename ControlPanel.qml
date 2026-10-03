@@ -844,6 +844,15 @@ Panel {
                 text: root.dupFilter
                 onTextChanged: if (text !== root.dupFilter) root.dupFilter = text
               }
+              Text {
+                text: "↑↓ reorder within section • pill shows section, click to move • ← sends back to main bar"
+                color: root.barFg()
+                opacity: 0.45
+                font.family: root.barFont()
+                font.pixelSize: Style.font.caption
+                wrapMode: Text.WordWrap
+                Layout.fillWidth: true
+              }
               Column {
                 Layout.fillWidth: true
                 spacing: 2
@@ -868,18 +877,20 @@ Panel {
                       elide: Text.ElideRight
                       Layout.fillWidth: true
                     }
-                    Text {
+                    Button {
                       text: modelData.sec
-                      color: root.barFg()
-                      opacity: 0.45
-                      font.family: root.barFont()
-                      font.pixelSize: Style.font.caption
+                      fontSize: Style.font.caption
+                      bordered: true
+                      selected: true
+                      tooltipText: "Lives in the " + modelData.sec + " section — click to move it to " + (modelData.sec === "left" ? "center" : (modelData.sec === "center" ? "right" : "left")) + " (sections pin to the bar edges)"
+                      Layout.preferredWidth: Style.space(64)
+                      onClicked: callBarSquared(["moveDupSection", modelData.id, modelData.sec === "left" ? "center" : (modelData.sec === "center" ? "right" : "left")])
                     }
                     Button {
                       text: "↑"
                       fontSize: Style.font.bodySmall
                       bordered: true
-                      tooltipText: "Move up"
+                      tooltipText: "Move up within " + modelData.sec
                       Layout.preferredWidth: Style.space(26)
                       enabled: modelData.idx > 0
                       opacity: modelData.idx > 0 ? 1.0 : 0.35
@@ -889,7 +900,7 @@ Panel {
                       text: "↓"
                       fontSize: Style.font.bodySmall
                       bordered: true
-                      tooltipText: "Move down"
+                      tooltipText: "Move down within " + modelData.sec
                       Layout.preferredWidth: Style.space(26)
                       enabled: modelData.idx < modelData.count - 1
                       opacity: modelData.idx < modelData.count - 1 ? 1.0 : 0.35
@@ -899,17 +910,9 @@ Panel {
                       text: "←"
                       fontSize: Style.font.heading
                       bordered: true
-                      tooltipText: "Move back to main bar"
+                      tooltipText: "Send back to the main bar"
                       Layout.preferredWidth: Style.space(34)
                       onClicked: callBarSquared(["moveToMain", modelData.id, modelData.sec])
-                    }
-                    Button {
-                      text: modelData.sec === "left" ? "L" : (modelData.sec === "center" ? "C" : "R")
-                      fontSize: Style.font.bodySmall
-                      bordered: true
-                      tooltipText: "Section: " + modelData.sec + " — move to " + (modelData.sec === "left" ? "center" : (modelData.sec === "center" ? "right" : "left"))
-                      Layout.preferredWidth: Style.space(26)
-                      onClicked: callBarSquared(["moveDupSection", modelData.id, modelData.sec === "left" ? "center" : (modelData.sec === "center" ? "right" : "left")])
                     }
                   }
                 }

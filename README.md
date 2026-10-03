@@ -74,7 +74,7 @@ Bar² edits `~/.config/omarchy/shell.json` **only in response to your actions** 
 
 ## Control popup
 
-`ControlPanel.qml` is a proper `Panel` + `KeyboardPanel` (same pattern as `omarchy.clock`). See `preview.png` for a screenshot: a `Bar² | Settings` header with a `mode·position` status pill plus **⚙** gear and **✕** on the right; below it the **Settings** drawer (hidden by default, opens via **⚙**) next to the **Main bar (n)** list with a `primary` badge and the **Second bar (n)** list with a `secondary` badge, each with its own search box. Drawer sections: Mode Full/Floating, Edge top/bottom/left/right, Look Transparent/Opaque, Width presets 300/400/500/600/Custom + −50/+50 stepper, Height −2/+2, Corners −2/+2 (`square` at 0), Spacing −1/+1. Main rows show the widget id, its section (`left`/`center`/`right`), and a bordered **→** button; Second rows show the id, its section, and **↑**/**↓** reorder buttons plus a **←** send-back button. A hint + **Clear** / **Close** footer closes the panel.
+`ControlPanel.qml` is a proper `Panel` + `KeyboardPanel` (same pattern as `omarchy.clock`). See `preview.png` for a screenshot: a `Bar² | Settings` header with a `mode·position` status pill plus **⚙** gear and **✕** on the right; below it the **Settings** drawer (hidden by default, opens via **⚙**) next to the **Main bar (n)** list with a `primary` badge and the **Second bar (n)** list with a `secondary` badge, each with its own search box. Drawer sections: Mode Full/Floating, Edge top/bottom/left/right, Look Transparent/Opaque, Width presets 300/400/500/600/Custom + −50/+50 stepper, Height −2/+2, Corners −2/+2 (`square` at 0), Spacing −1/+1. Main rows show the widget id, its section (`left`/`center`/`right`), and a bordered **→** button; Second rows show the id, a tappable **section pill** (`left`/`center`/`right` — click to move it to the next section; sections pin to the bar edges, so keep widgets in one section for tight packing), **↑**/**↓** reorder buttons, and a **←** send-back button. A hint + **Clear** / **Close** footer closes the panel.
 
 - Compact: `contentWidth 760`, `contentHeight` fitted and capped at 520
 - Settings drawer is hidden by default (`showBarSettings: false`); the header **⚙** gear opens it manually, the drawer **✕** hides it again
@@ -168,6 +168,8 @@ hyprctl layers | grep -E "io.github.kamal-v8.bar-squared|omarchy-bar"
 - Popup too tall → capped at 520px with scroll; adjust `Style.space(520)` in `ControlPanel.qml`
 
 ## Changelog
+
+- 1.5.4 — clearer Second-bar controls (section pill with full name + legend line instead of cryptic L/C/R), all hosted widgets packed into `center`
 
 - 1.5.3 — width memory tracks shrink too (stability-gated): no more dead gaps when widget content shrinks; note: keep hosted widgets in one section for tight packing — left/center/right pin groups to the edges like the main bar
 - 1.5.2 — Second-bar rows gain an L/C/R section-cycler button (`moveDupSection`), ↑/↓ disable at the edges

@@ -95,7 +95,7 @@ Item {
   readonly property int storedWidth: {
     var e = root.configEntry
     var w = e ? Number(e.width) : NaN
-    return isFinite(w) && w >= 200 && w <= 4000 ? Math.round(w) : 900
+    return isFinite(w) && w >= 80 && w <= 4000 ? Math.round(w) : 900
   }
   readonly property bool hasExplicitWidth: {
     var e = root.configEntry
@@ -358,8 +358,9 @@ Item {
     // Single-entry: settings live in the bar.layout entry. Fall back to the
     // legacy plugins[] entry only when no bar entry exists (migration window).
     var py = ""
-      + "import json,os,sys\n"
+      + "import json,os,sys,fcntl\n"
       + "p=os.path.expanduser('~/.config/omarchy/shell.json')\n"
+      + "lk=open(p+'.lock','w'); fcntl.flock(lk.fileno(), fcntl.LOCK_EX)\n"
       + "k=sys.argv[1]; v=sys.argv[2]\n"
       + "cfg=json.load(open(p))\n"
       + "import json as j\n"
@@ -440,7 +441,7 @@ Item {
     fileSet("position", np)
   }
   function setWidth(w) {
-    var nw = Math.max(200, Math.min(4000, Math.round(Number(w) || 900)))
+    var nw = Math.max(80, Math.min(4000, Math.round(Number(w) || 900)))
     fileSet("width", String(nw))
   }
   function clearLayout() { fileSet("clear","") }
@@ -484,8 +485,9 @@ Item {
     var home = Quickshell.env("HOME")
     var path = home + "/.config/omarchy/shell.json"
     var py = ""
-      + "import json,os,sys\n"
+      + "import json,os,sys,fcntl\n"
       + "p=os.path.expanduser('~/.config/omarchy/shell.json')\n"
+      + "lk=open(p+'.lock','w'); fcntl.flock(lk.fileno(), fcntl.LOCK_EX)\n"
       + "wid=sys.argv[1]; d=sys.argv[2]; dst=sys.argv[3]\n"
       + "import json as j\n"
       + "PID='io.github.kamal-v8.bar-squared'\n"
@@ -620,8 +622,9 @@ Item {
     if (!wid) return false
     var d = Number(dir) < 0 ? "-1" : "1"
     var py = ""
-      + "import json,os,sys\n"
+      + "import json,os,sys,fcntl\n"
       + "p=os.path.expanduser('~/.config/omarchy/shell.json')\n"
+      + "lk=open(p+'.lock','w'); fcntl.flock(lk.fileno(), fcntl.LOCK_EX)\n"
       + "wid=sys.argv[1]; d=int(sys.argv[2])\n"
       + "PID='io.github.kamal-v8.bar-squared'\n"
       + "cfg=json.load(open(p))\n"
@@ -686,8 +689,9 @@ Item {
     var home = Quickshell.env("HOME")
     var path = home + "/.config/omarchy/shell.json"
     var py = ""
-      + "import json,os,sys\n"
+      + "import json,os,sys,fcntl\n"
       + "p=os.path.expanduser('~/.config/omarchy/shell.json')\n"
+      + "lk=open(p+'.lock','w'); fcntl.flock(lk.fileno(), fcntl.LOCK_EX)\n"
       + "wid=sys.argv[1]; dst=sys.argv[2] if len(sys.argv)>2 and sys.argv[2] in ['left','center','right'] else 'center'\n"
       + "PID='io.github.kamal-v8.bar-squared'\n"
       + "cfg=json.load(open(p))\n"
@@ -760,8 +764,9 @@ Item {
     if (root._migrateBusy) return
     root._migrateBusy = true
     var py = ""
-      + "import json,os,sys\n"
+      + "import json,os,sys,fcntl\n"
       + "p=os.path.expanduser('~/.config/omarchy/shell.json')\n"
+      + "lk=open(p+'.lock','w'); fcntl.flock(lk.fileno(), fcntl.LOCK_EX)\n"
       + "PID='io.github.kamal-v8.bar-squared'\n"
       + "cfg=json.load(open(p))\n"
       + "bl=cfg.setdefault('bar',{}).setdefault('layout',{})\n"
@@ -820,8 +825,9 @@ Item {
     root.stashDup()
     var stash = root._lastDupJson
     var py = ""
-      + "import json,os,sys\n"
+      + "import json,os,sys,fcntl\n"
       + "p=os.path.expanduser('~/.config/omarchy/shell.json')\n"
+      + "lk=open(p+'.lock','w'); fcntl.flock(lk.fileno(), fcntl.LOCK_EX)\n"
       + "stash=json.loads(sys.argv[1] if len(sys.argv)>1 else '{\"left\":[],\"center\":[],\"right\":[]}')\n"
       + "PID='io.github.kamal-v8.bar-squared'\n"
       + "cfg=json.load(open(p))\n"

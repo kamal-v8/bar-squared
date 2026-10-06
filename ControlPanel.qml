@@ -127,7 +127,7 @@ Panel {
   }
   readonly property int storedWidth: {
     var e = root.configEntry; var w = e ? Number(e.width) : NaN
-    return isFinite(w) && w >= 200 && w <= 4000 ? Math.round(w) : 900
+    return isFinite(w) && w >= 80 && w <= 4000 ? Math.round(w) : 900
   }
   readonly property int storedHeight: {
     var e = root.configEntry; var h = e ? Number(e.height) : NaN
@@ -515,8 +515,8 @@ Panel {
                   bordered: true
                   tooltipText: "Decrease width by 50"
                   Layout.preferredWidth: Style.space(28)
-                  opacity: root.storedWidth > 200 ? 1.0 : 0.35
-                  onClicked: callBarSquared(["setWidth", String(Math.max(200, Math.min(4000, root.storedWidth - 50)))])
+                    opacity: root.storedWidth > 80 ? 1.0 : 0.35
+                  onClicked: callBarSquared(["setWidth", String(Math.max(80, Math.min(4000, root.storedWidth - 50)))])
                 }
                 Text {
                   text: root.storedWidth + "px"
@@ -533,7 +533,38 @@ Panel {
                   tooltipText: "Increase width by 50"
                   Layout.preferredWidth: Style.space(28)
                   opacity: root.storedWidth < 4000 ? 1.0 : 0.35
-                  onClicked: callBarSquared(["setWidth", String(Math.max(200, Math.min(4000, root.storedWidth + 50)))])
+                  onClicked: callBarSquared(["setWidth", String(Math.max(80, Math.min(4000, root.storedWidth + 50)))])
+                }
+              }
+              RowLayout {
+                Layout.fillWidth: true
+                spacing: Style.space(4)
+                Text {
+                  text: "Exact"
+                  color: root.barFg()
+                  opacity: 0.6
+                  font.family: root.barFont()
+                  font.pixelSize: Style.font.caption
+                }
+                TextField {
+                  Layout.fillWidth: true
+                  placeholderText: "80–4000"
+                  font.pixelSize: Style.font.bodySmall
+                  inputMethodHints: Qt.ImhDigitsOnly
+                  validator: IntValidator { bottom: 80; top: 4000 }
+                  text: root.storedWidth
+                  onAccepted: {
+                    var v = Math.max(80, Math.min(4000, Math.round(Number(text) || root.storedWidth)))
+                    if (v !== root.storedWidth) callBarSquared(["setWidth", String(v)])
+                    focus = false
+                  }
+                }
+                Text {
+                  text: "px"
+                  color: root.barFg()
+                  opacity: 0.6
+                  font.family: root.barFont()
+                  font.pixelSize: Style.font.caption
                 }
               }
 

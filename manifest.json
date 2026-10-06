@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "io.github.kamal-v8.bar-squared",
   "name": "Bar²",
-  "version": "1.5.4",
+  "version": "1.5.5",
   "author": "kamal",
   "license": "MIT",
   "description": "Empty second bar that mirrors the default bar — start empty, move widgets from the main bar to fill it. Two modes: full-edge (reserves space) and floating shrunk (configurable width). Control is a single ◧ button in the main bar.",

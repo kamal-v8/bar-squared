@@ -82,7 +82,7 @@ Bar² edits `~/.config/omarchy/shell.json` **only in response to your actions** 
 - Scrollable: `ScrollView` with vertical scrollbar only when content overflows
 - Closes via: **Close** button, drawer **✕**, header **✕**, `Esc` (PanelKeyCatcher), clicking outside (KeyboardPanel dismiss area), opening another panel (popout coordinator), or `omarchy-shell shell hide io.github.kamal-v8.bar-squared`
 - Auto-close fix (1.4.0): open state is service-owned (`Service.qml panelOpen`). `BarWidget.qml` mirrors live state there and restores it (`restoreIfNeeded`) after the bar rebuilds its widget Loader on a `shell.json` edit, and `ControlPanel.qml` mirrors `onOpenedChanged` too — so moves/resizes no longer close the panel, while genuine closes (✕, Esc, outside-click) still clear the flag and stay closed
-- Sections: Mode Full/Floating, Edge top/bottom/left/right, Look Transparent/Opaque — same as `omarchy bar transparent` for the main bar, Width presets 300/400/500/600/Custom + −50/+50 stepper, Height −2/+2, Corners −2/+2 + square label at 0, Spacing −1/+1), side-by-side Main/Second lists with `→`/`←` (section-preserving) and `↑`/`↓` reorder, Clear/Close footer
+- Sections: Mode Full/Floating, Edge top/bottom/left/right, Look Transparent/Opaque — same as `omarchy bar transparent` for the main bar, Width presets 300/400/500/600/Custom + −50/+50 stepper + Exact type-any-value field (80–4000px, Enter to apply), Height −2/+2, Corners −2/+2 + square label at 0, Spacing −1/+1), side-by-side Main/Second lists with `→`/`←` (section-preserving) and `↑`/`↓` reorder, Clear/Close footer
 - Drag-and-drop: hold + drag reorders widgets *within the main bar* (built-in). Moving *between* Main and Bar² is buttons only (`→`/`←` here, or right-click a Bar² widget to send it back) — no cross-bar drag.
 - Layout writes only rebuild hosted widgets when the layout itself changed, so Height/Corners/Width/Transparent/Mode tweaks don't restart async widgets (e.g. GPU polling).
 
@@ -103,7 +103,7 @@ omarchy-shell shell toggle io.github.kamal-v8.bar-squared
 - Disabled entries collapse (no placeholder); re-enabling restores them
 - Main-bar copies win over nested ones: if an id sits in both, Bar² filters its copy so one widget never renders twice
 - `full` mode: edge-anchored, `exclusionMode: Auto` (always reserves space so windows shrink, never hide underneath). Full span, unless an explicit `width` is set — then centered docked-shrunk at that width.
-- `floating` mode: centered shrunk `width` (200–4000), rounded border, `exclusionMode: Auto` (reserves space like a dock, does not overlay windows)
+- `floating` mode: centered shrunk `width` (80–4000), rounded border, `exclusionMode: Auto` (reserves space like a dock, does not overlay windows)
 - Horizontal windows always span the full edge (the visible bar stays centered); a click-through `mask` keeps the transparent margins from eating pointer input. This also keeps hosted widgets' popups anchored above their icon — a shrunk window would otherwise shift every popup left by the centering offset.
 - Widget gap: `spacing` (0–32px, default 0) between hosted widgets, via control panel (⚙ → Spacing) or `omarchy-shell io.github.kamal-v8.bar-squared setSpacing 6`
 - `transparent: true` mirrors the default bar (`surfaceFormat.opaque: false`, no border, full transparency). Toggle via control panel or `omarchy-shell io.github.kamal-v8.bar-squared setTransparent true/false`
@@ -123,7 +123,7 @@ omarchy-shell io.github.kamal-v8.bar-squared moveDupSection flowfocus left      
 omarchy-shell io.github.kamal-v8.bar-squared status | jq
 omarchy-shell io.github.kamal-v8.bar-squared toggleMode
 omarchy-shell io.github.kamal-v8.bar-squared setPosition top   # top/bottom/left/right
-omarchy-shell io.github.kamal-v8.bar-squared setWidth 600      # 200–4000
+omarchy-shell io.github.kamal-v8.bar-squared setWidth 600      # 80–4000
 omarchy-shell io.github.kamal-v8.bar-squared setHeight 40      # 20–80
 omarchy-shell io.github.kamal-v8.bar-squared setRadius 16      # 0–40, 0 = square
 omarchy-shell io.github.kamal-v8.bar-squared setSpacing 6      # 0–32px gap between widgets
@@ -131,7 +131,11 @@ omarchy-shell io.github.kamal-v8.bar-squared setTransparent true   # true/false,
 omarchy-shell io.github.kamal-v8.bar-squared clear             # returns hosted widgets to main bar
 ```
 
-Moves are atomic file edits (`tmp → rename`) of `~/.config/omarchy/shell.json`, so the shell's `FileView` reloads them.
+Moves are atomic file edits (`tmp → rename`) of `~/.config/omarchy/shell.json`, so the shell's `FileView` reloads them. Every mutation also takes an `flock` on `shell.json.lock`, so rapid successive moves can't interleave into lost updates.
+
+## Changelog
+
+- 1.5.5 — type-any-width Exact field (80–4000px), minimum width 200→80px so the bar hugs small content, `flock` on all `shell.json` mutations against rapid-move races
 
 ## Config
 
